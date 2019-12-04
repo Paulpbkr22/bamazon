@@ -1,50 +1,46 @@
 var mysql = require("mysql");
-
 var inquirer = require("inquirer");
 
-// create connection information for sql database
-var vonnection = mysql.createConnection({
-    host: "localhost",
+// create the connection information for the sql database
+var connection = mysql.createConnection({
+  host: "localhost",
 
-    // port 3306 unless otherwise specified
-    port: 3306,
+  // Your port; if not 3306
+  port: 3306,
 
-    // your username
-    user: "root",
+  // Your username
+  user: "root",
 
-    
-    password: "",
-    database: "bamazon_db"
+  // Your password
+  password: "Oblivion22",
+  database: "bamazon_db"
 });
 
-
-
-// connect to mysql server and sql database
+// connect to the mysql server and sql database
 connection.connect(function(err) {
-    if(err) throw err;
-
-    start();
+  if (err) throw err;
+  // run the displayProducts function after the connection is made to prompt the user
+  displayProducts();
 });
 
-function start() {
-    var query = "SELECT * FROM products";
-    connection.query(query, function (err, res) {
-        if (err) throw err;
+function displayProducts() {
+   var query = "SELECT * FROM products";
+   connection.query(query, function (err, res){
+       if (err) throw err;
+       console.log("\n")
+       console.log("Available Inventory");
+       console.log("---------------------------------------");
+       for (var i = 0; i < res.length; i++) {
+        console.log("Product ID: " + res[i].item_id + " || Product Name: " + res[i].product_name + " || Department: " +  res[i].department_name + "|| Stock: " + res[i].stock_quantity + "|| Price: $" + res[i].price);
+       };
+       console.log("---------------------------------------");
+       console.log("\n")
+       makePurchase();
+   });
 
-        console.log("\n")
-        console.log("Available Inventory");
-        console.log("------------------------------------------------------------------------------------");
-        for (var i = 0; i < res.length; i++) {
-         console.log("Product ID: " + res[i].item_id + " || Product Name: " + res[i].product_name + " || Department: " +  res[i].department_name + "|| Stock: " + res[i].stock_quantity);
-        };
-        console.log("------------------------------------------------------------------------------------");
-        console.log("\n")
-        makePurchase();
-    });
-}
-
-
-function makePurchase() {
+  }
+   
+   function makePurchase() {
     inquirer
     .prompt({
       name: "makepurchase",
@@ -100,8 +96,48 @@ function purchaseItem () {
       }
     ])
     .then(function(answer) {
-        console.log("\n")
-        console.log("You've chosen to buy " + answer.quantity + " " + answer.choice);             
-      });
+      var chosenItem;
+        for (var i = 0; i < res.length; i++) {
+          if (res[i].product_name === answer.choice) {
+            chosenItem = res[i];
+          }
+        }
+
+        if (chosenItem.stock_quantity > parseInt(answer.quantity)) {
+          
+          connection.query(
+            "UPDATE products SET ? WHERE ?",
+            [
+              {
+                stock_quantity: chosenItem.stock_quantity - parseInt(answer.quantity)
+              },
+              {
+                item_id: chosenItem.item_id
+              }
+            ],
+            function(error) {
+              if (error) throw err;
+              console.log("\n")
+              console.log("You've chosen to buy " + answer.quantity + " " + answer.choice);
+              console.log("---------------------------------------");
+              console.log("\n")
+              console.log("Order Summary");
+              console.log("---------------------------------------");
+              console.log("Product: " + answer.choice);
+              console.log("Quantity: " + answer.quantity);
+              console.log("---------------------------------------");
+              console.log("Total: $" + chosenItem.price * parseInt(answer.quantity));
+              console.log("\n")
+              displayProducts();
+            }
+          );
+        }
+        else {
+          console.log("---------------------------------------");
+          console.log("Insufficient Quantity");
+          console.log("Please choose Again!");
+          displayProducts();
+        }
     });
-  }
+  });
+}
